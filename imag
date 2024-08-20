@@ -1,0 +1,83 @@
+import cv2
+import face_recognition
+import numpy as np
+
+# Load pre-trained Haar cascade for face detection
+def load_face_cascade():
+    # Haar cascade XML file path
+    cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    return cv2.CascadeClassifier(cascade_path)
+
+# Detect faces in an image using Haar cascade
+def detect_faces_haar(image, face_cascade):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    return faces
+
+# Recognize faces using face_recognition library
+def recognize_faces(image, known_face_encodings, known_face_names):
+    # Convert the image to RGB (face_recognition uses RGB images)
+    rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    # Find all face locations and encodings in the image
+    face_locations = face_recognition.face_locations(rgb_image)
+    face_encodings = face_recognition.face_encodings(rgb_image, face_locations)
+    
+    face_names = []
+    for face_encoding in face_encodings:
+        # Compare faces with known face encodings
+        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+        name = "Unknown"
+        if True in matches:
+            first_match_index = matches.index(True)
+            name = known_face_names[first_match_index]
+        face_names.append(name)
+    
+    return face_locations, face_names
+
+# Draw rectangles and names on the image
+def draw_faces(image, face_locations, face_names):
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), 2)
+        cv2.rectangle(image, (left, bottom - 35), (right, bottom), (0, 255, 0), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(image, name, (left + 6, bottom - 6), font, 0.5, (255, 255, 255), 1)
+    return image
+
+# Main function
+def main():
+    # Load known face images
+    known_face_images = ["known_faces/person1.jpg", "known_faces/person2.jpg"]
+    known_face_encodings = []
+    known_face_names = ["Person 1", "Person 2"]
+    
+    for image_path in known_face_images:
+        image = face_recognition.load_image_file(image_path)
+        encoding = face_recognition.face_encodings(image)[0]
+        known_face_encodings.append(encoding)
+    
+    # Initialize Haar cascade
+    face_cascade = load_face_cascade()
+    
+    # Load the input image
+    input_image_path = "input_image.jpg"
+    image = cv2.imread(input_image_path)
+    
+    # Detect faces in the image
+    faces = detect_faces_haar(image, face_cascade)
+    
+    # Recognize faces
+    face_locations, face_names = recognize_faces(image, known_face_encodings, known_face_names)
+    
+    # Draw rectangles and names on the image
+    output_image = draw_faces(image, face_locations, face_names)
+    
+    # Save and display the output image
+    output_image_path = "output_image.jpg"
+    cv2.imwrite(output_image_path, output_image)
+    cv2.imshow('Face Recognition', output_image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
